@@ -120,4 +120,42 @@ class TimeLogController extends Controller
             
         return view('logs', compact('logs'));
     }
+
+    public function export()
+    {
+        $logs = Auth::user()->timeLogs()
+            ->orderBy('date', 'desc')
+            ->orderBy('time_in', 'desc')
+            ->get();
+
+        $filename = 'time-logs-' . now()->format('Y-m-d') . '.csv';
+        
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"$filename\"",
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
+        ];
+
+        $callback = function() use ($logs) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, ['Date', 'Time In', 'Time Out', 'Total Hours', 'Notes', 'Status']);
+
+            foreach ($logs as $log) {
+                fputcsv($file, [
+                    $log->date->format('Y-m-d'),
+                    Carbon::parse($log->time_in)->format('h:i A'),
+                    $log->time_out ? Carbon::parse($log->time_out)->format('h:i A') : 'N/A',
+                    $log->total_hours,
+                    $log->notes,
+                    $log->status,
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
 }

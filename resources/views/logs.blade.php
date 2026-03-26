@@ -4,12 +4,12 @@
 <div class="bw-panel p-0 overflow-hidden">
     <div class="px-6 py-6 border-b border-black flex justify-between items-center bg-white">
         <h3 class="text-xl font-bold text-black uppercase tracking-wide">Time Logs History</h3>
-        <button class="bw-button px-5 py-2 text-xs font-bold uppercase tracking-widest border border-black flex items-center">
+        <a href="{{ route('logs.export') }}" class="bw-button px-5 py-2 text-xs font-bold uppercase tracking-widest border border-black flex items-center">
             <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
             Export
-        </button>
+        </a>
     </div>
     <div class="overflow-x-auto">
         <table class="min-w-full text-left">

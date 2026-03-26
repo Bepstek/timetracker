@@ -22,4 +22,5 @@ Route::middleware('auth')->group(function () {
     Route::post('clock-in', [TimeLogController::class, 'store'])->name('clock-in');
     Route::put('clock-out/{timeLog}', [TimeLogController::class, 'update'])->name('clock-out');
     Route::get('logs', [TimeLogController::class, 'history'])->name('logs');
+    Route::get('logs/export', [TimeLogController::class, 'export'])->name('logs.export');
 });
