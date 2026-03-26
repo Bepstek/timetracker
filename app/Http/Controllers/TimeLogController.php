@@ -113,7 +113,11 @@ class TimeLogController extends Controller
 
     public function history()
     {
-        $logs = Auth::user()->timeLogs()->latest()->paginate(10);
+        $logs = Auth::user()->timeLogs()
+            ->orderBy('date', 'desc')
+            ->orderBy('time_in', 'desc')
+            ->paginate(10);
+            
         return view('logs', compact('logs'));
     }
 }
