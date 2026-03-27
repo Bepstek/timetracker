@@ -26,7 +26,7 @@
 
             <div class="text-center py-6">
                 @if($activeLog)
-                    <div class="text-8xl font-black text-black tracking-tighter mb-4 tabular-nums leading-none" id="timer">00:00:00</div>
+                    <div class="text-4xl sm:text-6xl md:text-8xl font-black text-black tracking-tighter mb-4 tabular-nums leading-none" id="timer">00:00:00</div>
                     <p class="text-gray-500 mb-10 text-sm uppercase tracking-widest">Started at {{ \Carbon\Carbon::parse($activeLog->time_in)->format('h:i A') }}</p>
                     
                     <form action="{{ route('clock-out', $activeLog) }}" method="POST" class="max-w-xl mx-auto">
