@@ -61,7 +61,19 @@ class TimeLogController extends Controller
             $totalSummary += $diff;
         }
 
-        return view('dashboard', compact('activeLog', 'chartLabels', 'chartData', 'totalSummary', 'user'));
+        // Calculate days left
+        $requiredHours = 486.00;
+        $remainingHours = max(0, $requiredHours - $totalSummary);
+        
+        // Calculate average hours per day (only for days worked)
+        $daysWorked = $user->timeLogs()->distinct('date')->count();
+        $averageHoursPerDay = $daysWorked > 0 ? ($user->timeLogs()->sum('total_hours') / $daysWorked) : 0;
+        
+        // Estimate days left (using 8 hours as fallback if no average yet)
+        $dailyRate = $averageHoursPerDay > 0 ? $averageHoursPerDay : 8;
+        $daysLeft = ceil($remainingHours / $dailyRate);
+
+        return view('dashboard', compact('activeLog', 'chartLabels', 'chartData', 'totalSummary', 'user', 'daysLeft', 'averageHoursPerDay'));
     }
 
     public function store(Request $request)

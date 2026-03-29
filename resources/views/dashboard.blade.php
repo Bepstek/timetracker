@@ -95,9 +95,17 @@
                     <span class="text-sm text-gray-500 uppercase tracking-wider">Total Sessions</span>
                     <span class="text-lg font-bold text-black">{{ $user->timeLogs()->count() }}</span>
                 </div>
-                <div class="flex justify-between items-center">
+                <div class="flex justify-between items-center mb-2">
                     <span class="text-sm text-gray-500 uppercase tracking-wider">Required</span>
                     <span class="text-lg font-bold text-black">486.00 HRS</span>
+                </div>
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm text-gray-500 uppercase tracking-wider">Daily Avg</span>
+                    <span class="text-lg font-bold text-black">{{ number_format($averageHoursPerDay, 2) ?: '0.00' }} HRS</span>
+                </div>
+                <div class="flex justify-between items-center border-t border-gray-100 pt-3 mt-1">
+                    <span class="text-sm text-black font-bold uppercase tracking-widest">Est. Days Left</span>
+                    <span class="text-2xl font-black text-black tracking-tighter">{{ $daysLeft }}</span>
                 </div>
             </div>
         </div>
