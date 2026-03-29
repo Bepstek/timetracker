@@ -30,10 +30,10 @@
                         {{ \Carbon\Carbon::parse($log->date)->format('M d, Y') }}
                     </td>
                     <td class="px-6 py-5 text-sm text-gray-500">
-                        {{ \Carbon\Carbon::parse($log->time_in)->format('h:i A') }}
+                        {{ \Carbon\Carbon::parse($log->time_in)->format('H:i') }}
                     </td>
                     <td class="px-6 py-5 text-sm text-gray-500">
-                        {{ $log->time_out ? \Carbon\Carbon::parse($log->time_out)->format('h:i A') : '—' }}
+                        {{ $log->time_out ? \Carbon\Carbon::parse($log->time_out)->format('H:i') : '—' }}
                     </td>
                     <td class="px-6 py-5 text-sm font-mono font-bold text-black">
                         {{ $log->total_hours }}

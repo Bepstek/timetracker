@@ -97,15 +97,35 @@ class TimeLogController extends Controller
         }
 
         $now = Carbon::now();
-        $start = Carbon::parse($timeLog->time_in);
-        $diffMinutes = $start->diffInMinutes($now);
+        
+        // Handle manual time out if provided
+        if ($request->filled('manual_time_out')) {
+            try {
+                // Combine the original log date with the manual time
+                $stopTime = Carbon::parse($timeLog->date->format('Y-m-d') . ' ' . $request->input('manual_time_out'));
+                
+                // If manual time is before start time, it might be the next day or just an error
+                // For now, we assume same day as the log date
+                if ($stopTime->lt(Carbon::parse($timeLog->date->format('Y-m-d') . ' ' . $timeLog->time_in))) {
+                    return back()->withErrors(['message' => 'Manual clock-out time cannot be before clock-in time.']);
+                }
+            } catch (\Exception $e) {
+                return back()->withErrors(['message' => 'Invalid time format provided.']);
+            }
+        } else {
+            $stopTime = $now;
+        }
+        
+        // Calculate hours based on date and time
+        $startDateTime = Carbon::parse($timeLog->date->format('Y-m-d') . ' ' . $timeLog->time_in);
+        $diffMinutes = $startDateTime->diffInMinutes($stopTime);
         $totalHours = round($diffMinutes / 60, 2);
 
         $timeLog->update([
-            'time_out' => $now,
+            'time_out' => $stopTime,
             'total_hours' => $totalHours,
             'status' => 'completed',
-            'notes' => $request->input('notes'),
+            'notes' => $request->input('notes', $request->filled('manual_time_out') ? 'Manual clock out.' : 'Clocked out successfully.'),
         ]);
 
         return back()->with('success', 'Clocked out successfully.');
@@ -145,8 +165,8 @@ class TimeLogController extends Controller
             foreach ($logs as $log) {
                 fputcsv($file, [
                     $log->date->format('Y-m-d'),
-                    Carbon::parse($log->time_in)->format('h:i A'),
-                    $log->time_out ? Carbon::parse($log->time_out)->format('h:i A') : 'N/A',
+                    Carbon::parse($log->time_in)->format('H:i'),
+                    $log->time_out ? Carbon::parse($log->time_out)->format('H:i') : 'N/A',
                     $log->total_hours,
                     $log->notes,
                     $log->status,
