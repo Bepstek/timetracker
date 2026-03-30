@@ -74,7 +74,16 @@
                     </form>
 
                     <script>
-                        const startTime = new Date("{{ \Carbon\Carbon::parse($activeLog->date->format('Y-m-d') . ' ' . $activeLog->time_in)->toIso8601String() }}").getTime();
+                        @php
+                            $timeIn = $activeLog->time_in;
+                            if ($timeIn instanceof \Carbon\Carbon) {
+                                $timeIn = $timeIn->format('H:i:s');
+                            } elseif (strlen($timeIn) > 8) {
+                                $timeIn = date('H:i:s', strtotime($timeIn));
+                            }
+                            $isoStart = \Carbon\Carbon::parse($activeLog->date->format('Y-m-d') . ' ' . $timeIn)->toIso8601String();
+                        @endphp
+                        const startTime = new Date("{{ $isoStart }}").getTime();
                         
                         function updateTimer() {
                             const now = new Date().getTime();

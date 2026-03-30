@@ -27,7 +27,9 @@ class TimeLogController extends Controller
         
         $logsQuery = $user->timeLogs()
             ->whereDate('date', '>=', $startDate)
-            ->whereDate('date', '<=', $endDate);
+            ->whereDate('date', '<=', $endDate)
+            ->orderBy('date', 'desc')
+            ->orderBy('time_in', 'desc');
 
         if ($user->company_id) {
             // Strict match: the log's company MUST match the user's current company
@@ -73,8 +75,17 @@ class TimeLogController extends Controller
 
         if ($activeLog && $user->company_id && $activeLog->company_id === $user->company_id) {
             // Add current session duration
-            $start = Carbon::parse($activeLog->time_in);
-            $now = Carbon::now();
+            // Use only the time part if time_in is already a Carbon instance or formatted string
+            $timeIn = $activeLog->time_in;
+            if ($timeIn instanceof \Carbon\Carbon) {
+                $timeIn = $timeIn->format('H:i:s');
+            } elseif (strlen($timeIn) > 8) {
+                // If it's a full datetime string like "2026-03-30 11:40:05", extract only the time
+                $timeIn = date('H:i:s', strtotime($timeIn));
+            }
+
+            $start = \Carbon\Carbon::parse($activeLog->date->format('Y-m-d') . ' ' . $timeIn);
+            $now = \Carbon\Carbon::now();
             $diff = $start->diffInMinutes($now) / 60;
             $totalSummary += $diff;
         }
