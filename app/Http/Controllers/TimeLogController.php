@@ -136,6 +136,16 @@ class TimeLogController extends Controller
             return back()->withErrors(['message' => 'You are already clocked in.']);
         }
 
+        // Prevent multiple logs in the same day (Clock-in attempt)
+        $todayLog = $user->timeLogs()
+            ->whereDate('date', Carbon::today())
+            ->where('company_id', $user->company_id)
+            ->exists();
+
+        if ($todayLog) {
+            return back()->withErrors(['message' => 'You have already recorded a log for today. Only one session per day is allowed.']);
+        }
+
         $user->timeLogs()->create([
             'company_id' => $user->company_id,
             'date' => Carbon::today(),
@@ -156,6 +166,16 @@ class TimeLogController extends Controller
         ]);
 
         $user = Auth::user();
+
+        // Check for existing log on this date
+        $existingLog = $user->timeLogs()
+            ->whereDate('date', $request->date)
+            ->where('company_id', $user->company_id)
+            ->exists();
+
+        if ($existingLog) {
+            return back()->withErrors(['message' => 'You already have a time log recorded for ' . Carbon::parse($request->date)->format('M d, Y') . '.']);
+        }
         
         $timeIn = Carbon::parse($request->date . ' ' . $request->time_in);
         $timeOut = Carbon::parse($request->date . ' ' . $request->time_out);
@@ -191,12 +211,19 @@ class TimeLogController extends Controller
         // Handle manual time out if provided
         if ($request->filled('manual_time_out')) {
             try {
-                // Combine the original log date with the manual time
+        // Combine the original log date with the manual time
+                $timeInValue = $timeLog->time_in;
+                if ($timeInValue instanceof Carbon) {
+                    $timeInValue = $timeInValue->format('H:i:s');
+                } elseif (strlen($timeInValue) > 8) {
+                    $timeInValue = date('H:i:s', strtotime($timeInValue));
+                }
+
                 $stopTime = Carbon::parse($timeLog->date->format('Y-m-d') . ' ' . $request->input('manual_time_out'));
                 
                 // If manual time is before start time, it might be the next day or just an error
                 // For now, we assume same day as the log date
-                if ($stopTime->lt(Carbon::parse($timeLog->date->format('Y-m-d') . ' ' . $timeLog->time_in))) {
+                if ($stopTime->lt(Carbon::parse($timeLog->date->format('Y-m-d') . ' ' . $timeInValue))) {
                     return back()->withErrors(['message' => 'Manual clock-out time cannot be before clock-in time.']);
                 }
             } catch (\Exception $e) {
@@ -207,7 +234,14 @@ class TimeLogController extends Controller
         }
         
         // Calculate hours based on date and time
-        $startDateTime = Carbon::parse($timeLog->date->format('Y-m-d') . ' ' . $timeLog->time_in);
+        $timeInValue = $timeLog->time_in;
+        if ($timeInValue instanceof Carbon) {
+            $timeInValue = $timeInValue->format('H:i:s');
+        } elseif (strlen($timeInValue) > 8) {
+            $timeInValue = date('H:i:s', strtotime($timeInValue));
+        }
+
+        $startDateTime = Carbon::parse($timeLog->date->format('Y-m-d') . ' ' . $timeInValue);
         $diffMinutes = $startDateTime->diffInMinutes($stopTime);
         $totalHours = round($diffMinutes / 60, 2);
 
