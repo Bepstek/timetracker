@@ -15,12 +15,17 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->date('date');
-            $table->time('time_in');
-            $table->time('time_out')->nullable();
+            $table->timestamp('time_in');
+            $table->timestamp('time_out')->nullable();
             $table->decimal('total_hours', 5, 2)->default(0); // e.g. 10.50
             $table->text('notes')->nullable();
             $table->string('status')->default('active'); // active, completed
             $table->timestamps();
+
+            // Indexes for faster queries
+            $table->index('user_id');
+            $table->index('date');
+            $table->index(['user_id', 'date']);
         });
     }
 

@@ -98,6 +98,11 @@
                                     <div class="px-4 py-3 text-xs text-gray-500 border-b border-gray-100">
                                         Signed in as <br> <span class="font-bold text-black truncate">{{ Auth::user()->email }}</span>
                                     </div>
+                                    <div class="py-1 border-b border-gray-100">
+                                        <a href="{{ route('settings') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-black hover:text-white transition-colors duration-150" role="menuitem" tabindex="-1">
+                                            Account Settings
+                                        </a>
+                                    </div>
                                     <form method="POST" action="{{ route('logout') }}">
                                         @csrf
                                         <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-black hover:text-white transition-colors duration-150" role="menuitem" tabindex="-1" id="user-menu-item-2">Sign out</button>

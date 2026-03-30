@@ -12,6 +12,7 @@ class TimeLogController extends Controller
     public function index()
     {
         $user = Auth::user();
+        $user->load('company');
         
         // Get today's active log if any
         $activeLog = $user->timeLogs()
@@ -20,14 +21,24 @@ class TimeLogController extends Controller
             ->latest()
             ->first();
 
-        // Get logs for the current year
+        // Get logs for the current year *only* if they match the student's *current* company assignment
         $endDate = Carbon::today();
         $startDate = Carbon::today()->startOfYear();
         
-        $logs = $user->timeLogs()
+        $logsQuery = $user->timeLogs()
             ->whereDate('date', '>=', $startDate)
-            ->whereDate('date', '<=', $endDate)
-            ->get();
+            ->whereDate('date', '<=', $endDate);
+
+        if ($user->company_id) {
+            // Strict match: the log's company MUST match the user's current company
+            $logsQuery->where('company_id', $user->company_id);
+        } else {
+            // If the user has no company assigned, don't show any logs on the dashboard
+            $logsQuery->whereRaw('1 = 0');
+        }
+
+        $logs = $logsQuery->get();
+        $recentLogs = $logs->take(5);
 
         // Prepare chart data
         $chartLabels = [];
@@ -51,9 +62,16 @@ class TimeLogController extends Controller
             $currentDate->addDay();
         }
 
-        // Calculate total hours ever
-        $totalSummary = $user->timeLogs()->sum('total_hours');
-        if ($activeLog) {
+        // Calculate total hours for current company
+        $totalSummaryQuery = $user->timeLogs();
+        if ($user->company_id) {
+            $totalSummaryQuery->where('company_id', $user->company_id);
+        } else {
+            $totalSummaryQuery->whereRaw('1 = 0');
+        }
+        $totalSummary = $totalSummaryQuery->sum('total_hours');
+
+        if ($activeLog && $user->company_id && $activeLog->company_id === $user->company_id) {
             // Add current session duration
             $start = Carbon::parse($activeLog->time_in);
             $now = Carbon::now();
@@ -65,20 +83,38 @@ class TimeLogController extends Controller
         $requiredHours = 486.00;
         $remainingHours = max(0, $requiredHours - $totalSummary);
         
-        // Calculate average hours per day (only for days worked)
-        $daysWorked = $user->timeLogs()->distinct('date')->count();
-        $averageHoursPerDay = $daysWorked > 0 ? ($user->timeLogs()->sum('total_hours') / $daysWorked) : 0;
+        // Calculate average hours per day (only for days worked in current company)
+        $daysWorkedQuery = $user->timeLogs()->distinct('date');
+        if ($user->company_id) {
+            $daysWorkedQuery->where('company_id', $user->company_id);
+        } else {
+            $daysWorkedQuery->whereRaw('1 = 0');
+        }
+        $daysWorked = $daysWorkedQuery->count();
+
+        $avgSumQuery = $user->timeLogs();
+        if ($user->company_id) {
+            $avgSumQuery->where('company_id', $user->company_id);
+        } else {
+            $avgSumQuery->whereRaw('1 = 0');
+        }
+        $averageHoursPerDay = $daysWorked > 0 ? ($avgSumQuery->sum('total_hours') / $daysWorked) : 0;
         
         // Estimate days left (using 8 hours as fallback if no average yet)
         $dailyRate = $averageHoursPerDay > 0 ? $averageHoursPerDay : 8;
         $daysLeft = ceil($remainingHours / $dailyRate);
 
-        return view('dashboard', compact('activeLog', 'chartLabels', 'chartData', 'totalSummary', 'user', 'daysLeft', 'averageHoursPerDay'));
+        return view('dashboard', compact('activeLog', 'chartLabels', 'chartData', 'totalSummary', 'user', 'daysLeft', 'averageHoursPerDay', 'recentLogs'));
     }
 
     public function store(Request $request)
     {
         $user = Auth::user();
+
+        // Check if student is assigned to a company
+        if (!$user->company_id) {
+            return back()->withErrors(['message' => 'You cannot clock in yet. Please wait for an administrator to assign you to an OJT Room.']);
+        }
 
         // Check if already clocked in
         $activeLog = $user->timeLogs()
@@ -90,12 +126,43 @@ class TimeLogController extends Controller
         }
 
         $user->timeLogs()->create([
+            'company_id' => $user->company_id,
             'date' => Carbon::today(),
             'time_in' => Carbon::now(),
             'status' => 'active',
         ]);
 
         return back()->with('success', 'Clocked in successfully.');
+    }
+
+    public function storeManual(Request $request)
+    {
+        $request->validate([
+            'date' => 'required|date|before_or_equal:today',
+            'time_in' => 'required',
+            'time_out' => 'required|after:time_in',
+            'notes' => 'nullable|string',
+        ]);
+
+        $user = Auth::user();
+        
+        $timeIn = Carbon::parse($request->date . ' ' . $request->time_in);
+        $timeOut = Carbon::parse($request->date . ' ' . $request->time_out);
+        
+        $diffMinutes = $timeIn->diffInMinutes($timeOut);
+        $totalHours = round($diffMinutes / 60, 2);
+
+        $user->timeLogs()->create([
+            'company_id' => $user->company_id,
+            'date' => $request->date,
+            'time_in' => $timeIn,
+            'time_out' => $timeOut,
+            'total_hours' => $totalHours,
+            'notes' => $request->notes,
+            'status' => 'completed',
+        ]);
+
+        return back()->with('success', 'Manual time log added successfully.');
     }
 
     public function update(Request $request, TimeLog $timeLog)
@@ -145,20 +212,39 @@ class TimeLogController extends Controller
 
     public function history()
     {
-        $logs = Auth::user()->timeLogs()
+        $user = Auth::user();
+        
+        $query = $user->timeLogs()
             ->orderBy('date', 'desc')
-            ->orderBy('time_in', 'desc')
-            ->paginate(10);
+            ->orderBy('time_in', 'desc');
+
+        if ($user->company_id) {
+            $query->where('company_id', $user->company_id);
+        } else {
+            // Student with no company sees no history for data isolation
+            $query->whereRaw('1 = 0');
+        }
+
+        $logs = $query->paginate(10);
             
         return view('logs', compact('logs'));
     }
 
     public function export()
     {
-        $logs = Auth::user()->timeLogs()
+        $user = Auth::user();
+        
+        $query = $user->timeLogs()
             ->orderBy('date', 'desc')
-            ->orderBy('time_in', 'desc')
-            ->get();
+            ->orderBy('time_in', 'desc');
+
+        if ($user->company_id) {
+            $query->where('company_id', $user->company_id);
+        } else {
+            $query->whereRaw('1 = 0');
+        }
+
+        $logs = $query->get();
 
         $filename = 'time-logs-' . now()->format('Y-m-d') . '.csv';
         
