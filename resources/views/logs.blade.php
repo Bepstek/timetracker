@@ -72,7 +72,11 @@
                         {{ $log->time_out ? \Carbon\Carbon::parse($log->time_out)->format('H:i') : '—' }}
                     </td>
                     <td class="px-6 py-5 text-sm font-mono font-bold text-black">
-                        {{ $log->total_hours }}
+                        @php
+                            $hours = floor($log->total_hours);
+                            $minutes = round(($log->total_hours - $hours) * 60);
+                        @endphp
+                        {{ $hours }}h {{ $minutes }}m
                     </td>
                     <td class="px-6 py-5 text-sm text-gray-500 max-w-xs truncate">
                         {{ $log->notes ?: '—' }}

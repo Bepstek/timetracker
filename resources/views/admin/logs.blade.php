@@ -64,7 +64,11 @@
                         <p class="text-[9px] font-bold text-gray-400 uppercase">{{ \Carbon\Carbon::parse($log->time_in)->format('H:i') }} - {{ $log->time_out ? \Carbon\Carbon::parse($log->time_out)->format('H:i') : 'LIVE' }}</p>
                     </td>
                     <td class="px-8 py-4 text-sm font-black text-black tabular-nums">
-                        {{ number_format($log->total_hours, 2) }}
+                        @php
+                            $hours = floor($log->total_hours);
+                            $minutes = round(($log->total_hours - $hours) * 60);
+                        @endphp
+                        {{ $hours }}h {{ $minutes }}m
                     </td>
                     <td class="px-8 py-4">
                         <span class="text-[9px] font-black uppercase px-2 py-1 {{ $log->status === 'active' ? 'bg-black text-white' : 'bg-gray-100 text-gray-400' }}">

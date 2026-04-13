@@ -74,7 +74,12 @@
                     </td>
                     <td class="px-8 py-6">
                         <div class="flex items-center max-w-xs">
-                            <span class="text-sm font-black text-black mr-4 tabular-nums">{{ number_format($student->time_logs_sum_total_hours ?: 0, 2) }}</span>
+                            @php
+                                $totalHours = $student->time_logs_sum_total_hours ?: 0;
+                                $hours = floor($totalHours);
+                                $minutes = round(($totalHours - $hours) * 60);
+                            @endphp
+                            <span class="text-sm font-black text-black mr-4 tabular-nums">{{ $hours }}h {{ $minutes }}m</span>
                             <div class="flex-1 h-2 bg-gray-100 overflow-hidden">
                                 @php 
                                     $progress = min(100, (($student->time_logs_sum_total_hours ?: 0) / 486) * 100);
@@ -87,11 +92,13 @@
                     <td class="px-8 py-6 text-right">
                         <div class="flex items-center justify-end gap-2">
                             <button onclick="openLogModal({{ $student->id }}, '{{ addslashes($student->name) }}', {{ json_encode($student->timeLogs->map(function($log) {
+                                $hours = floor($log->total_hours);
+                                $minutes = round(($log->total_hours - $hours) * 60);
                                 return [
                                     'date' => \Carbon\Carbon::parse($log->date)->format('M d, Y'),
                                     'time_in' => \Carbon\Carbon::parse($log->time_in)->format('H:i'),
                                     'time_out' => $log->time_out ? \Carbon\Carbon::parse($log->time_out)->format('H:i') : 'LIVE',
-                                    'total_hours' => number_format($log->total_hours, 2),
+                                    'total_hours' => $hours . 'h ' . $minutes . 'm',
                                     'status' => $log->status,
                                     'notes' => $log->notes ?: '—'
                                 ];
@@ -173,7 +180,7 @@
                             <p class="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">${log.time_in} - ${log.time_out}</p>
                         </td>
                         <td class="py-5 text-center text-xs font-black text-black tabular-nums">
-                            ${log.total_hours}H
+                            ${log.total_hours}
                         </td>
                         <td class="py-5 text-center">
                             <span class="text-[8px] font-black px-2 py-0.5 uppercase tracking-tighter ${statusClass}">

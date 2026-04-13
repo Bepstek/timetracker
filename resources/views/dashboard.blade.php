@@ -185,7 +185,11 @@
                                 </p>
                             </td>
                             <td class="px-6 py-4 text-right">
-                                <span class="text-xs font-black text-black">{{ number_format($log->total_hours, 2) }}</span>
+                                @php
+                                    $hours = floor($log->total_hours);
+                                    $minutes = round(($log->total_hours - $hours) * 60);
+                                @endphp
+                                <span class="text-xs font-black text-black">{{ $hours }}h {{ $minutes }}m</span>
                             </td>
                         </tr>
                     @empty

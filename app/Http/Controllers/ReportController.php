@@ -80,15 +80,19 @@ class ReportController extends Controller
 
             // Data rows
             foreach ($logs as $log) {
-                fputcsv($handle, [
-                    $log->user->name,
-                    $log->user->email,
-                    $log->date->format('Y-m-d'),
-                    $log->time_in->format('H:i:s'),
-                    $log->time_out?->format('H:i:s') ?? '',
-                    $log->total_hours,
-                    $log->notes,
-                ]);
+                    $hours = floor($log->total_hours);
+                    $minutes = round(($log->total_hours - $hours) * 60);
+                    $formatted_total_hours = $hours . 'h ' . $minutes . 'm';
+
+                    fputcsv($handle, [
+                        $log->user->name,
+                        $log->user->email,
+                        $log->date->format('Y-m-d'),
+                        $log->time_in->format('H:i:s'),
+                        $log->time_out?->format('H:i:s') ?? '',
+                        $formatted_total_hours,
+                        $log->notes,
+                    ]);
             }
 
             fclose($handle);
