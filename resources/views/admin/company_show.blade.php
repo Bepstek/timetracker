@@ -75,14 +75,15 @@
                     <td class="px-8 py-6">
                         <div class="flex items-center max-w-xs">
                             @php
-                                $totalHours = $student->time_logs_sum_total_hours ?: 0;
-                                $hours = floor($totalHours);
-                                $minutes = round(($totalHours - $hours) * 60);
+                                // Use the rendered_hours from the controller if available, otherwise calculate it.
+                                $renderedHours = $student->rendered_hours ?? 0;
+                                $hours = floor($renderedHours);
+                                $minutes = round(($renderedHours - $hours) * 60);
                             @endphp
                             <span class="text-sm font-black text-black mr-4 tabular-nums">{{ $hours }}h {{ $minutes }}m</span>
                             <div class="flex-1 h-2 bg-gray-100 overflow-hidden">
                                 @php 
-                                    $progress = min(100, (($student->time_logs_sum_total_hours ?: 0) / 486) * 100);
+                                    $progress = min(100, ($renderedHours / 486) * 100);
                                 @endphp
                                 <div class="bg-black h-full transition-all duration-[1.5s]" style="width: {{ $progress }}%"></div>
                             </div>
@@ -92,13 +93,19 @@
                     <td class="px-8 py-6 text-right">
                         <div class="flex items-center justify-end gap-2">
                             <button onclick="openLogModal({{ $student->id }}, '{{ addslashes($student->name) }}', {{ json_encode($student->timeLogs->map(function($log) {
-                                $hours = floor($log->total_hours);
-                                $minutes = round(($log->total_hours - $hours) * 60);
+                                $totalHours = $log->total_hours ?? 0;
+                                $renderedHours = $totalHours > 1 ? $totalHours - 1 : $totalHours;
+                                $h = floor($totalHours);
+                                $m = round(($totalHours - $h) * 60);
+                                $rh = floor($renderedHours);
+                                $rm = round(($renderedHours - $rh) * 60);
+
                                 return [
                                     'date' => \Carbon\Carbon::parse($log->date)->format('M d, Y'),
                                     'time_in' => \Carbon\Carbon::parse($log->time_in)->format('H:i'),
                                     'time_out' => $log->time_out ? \Carbon\Carbon::parse($log->time_out)->format('H:i') : 'LIVE',
-                                    'total_hours' => $hours . 'h ' . $minutes . 'm',
+                                    'total_hours' => $h . 'h ' . $m . 'm',
+                                    'rendered_hours' => $rh . 'h ' . $rm . 'm',
                                     'status' => $log->status,
                                     'notes' => $log->notes ?: '—'
                                 ];
@@ -144,6 +151,7 @@
                     <tr class="border-b-2 border-black">
                         <th class="py-4 text-[10px] font-black text-black uppercase tracking-widest">Date / Session</th>
                         <th class="py-4 text-[10px] font-black text-black uppercase tracking-widest text-center">Duration</th>
+                        <th class="py-4 text-[10px] font-black text-black uppercase tracking-widest text-center">Rendered</th>
                         <th class="py-4 text-[10px] font-black text-black uppercase tracking-widest text-center">Status</th>
                         <th class="py-4 text-[10px] font-black text-black uppercase tracking-widest">Registry Notes</th>
                     </tr>
@@ -181,6 +189,9 @@
                         </td>
                         <td class="py-5 text-center text-xs font-black text-black tabular-nums">
                             ${log.total_hours}
+                        </td>
+                        <td class="py-5 text-center text-xs font-black text-black tabular-nums">
+                            ${log.rendered_hours}
                         </td>
                         <td class="py-5 text-center">
                             <span class="text-[8px] font-black px-2 py-0.5 uppercase tracking-tighter ${statusClass}">

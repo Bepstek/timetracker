@@ -62,13 +62,23 @@ class AdminController extends Controller
     public function showCompany(Company $company)
     {
         $company->load(['users' => function($query) use ($company) {
-            $query->withSum(['timeLogs' => function($q) use ($company) {
-                $q->where('status', 'completed')
-                  ->where('company_id', $company->id);
-            }], 'total_hours')->with(['timeLogs' => function($q) use ($company) {
+            $query->with(['timeLogs' => function($q) use ($company) {
                 $q->where('company_id', $company->id);
             }]);
         }]);
+
+        // Manually calculate total and rendered hours for each student
+        foreach ($company->users as $user) {
+            $totalHours = 0;
+            $renderedHours = 0;
+            foreach ($user->timeLogs as $log) {
+                $hours = $log->total_hours ?? 0;
+                $totalHours += $hours;
+                $renderedHours += ($hours > 1) ? $hours - 1 : $hours;
+            }
+            $user->total_hours = $totalHours;
+            $user->rendered_hours = $renderedHours;
+        }
 
         return view('admin.company_show', compact('company'));
     }
