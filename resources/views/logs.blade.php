@@ -55,6 +55,7 @@
                     <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-widest">In</th>
                     <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-widest">Out</th>
                     <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-widest">Total</th>
+                    <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-widest">Rendered</th>
                     <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-widest">Notes</th>
                     <th class="px-6 py-4 text-xs font-bold text-black uppercase tracking-widest">Status</th>
                 </tr>
@@ -75,6 +76,14 @@
                         @php
                             $hours = floor($log->total_hours);
                             $minutes = round(($log->total_hours - $hours) * 60);
+                        @endphp
+                        {{ $hours }}h {{ $minutes }}m
+                    </td>
+                    <td class="px-6 py-5 text-sm font-mono font-bold text-black">
+                        @php
+                            $renderedHours = $log->total_hours > 1 ? $log->total_hours - 1 : $log->total_hours;
+                            $hours = floor($renderedHours);
+                            $minutes = round(($renderedHours - $hours) * 60);
                         @endphp
                         {{ $hours }}h {{ $minutes }}m
                     </td>

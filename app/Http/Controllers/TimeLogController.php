@@ -64,14 +64,21 @@ class TimeLogController extends Controller
             $currentDate->addDay();
         }
 
-        // Calculate total hours for current company
+        // Calculate total hours for current company, subtracting 1 hour for lunch from each log > 1 hour
         $totalSummaryQuery = $user->timeLogs();
         if ($user->company_id) {
             $totalSummaryQuery->where('company_id', $user->company_id);
         } else {
             $totalSummaryQuery->whereRaw('1 = 0');
         }
-        $totalSummary = $totalSummaryQuery->sum('total_hours');
+        
+        $logsForSummary = $totalSummaryQuery->get();
+        $totalSummary = $logsForSummary->reduce(function ($carry, $log) {
+            $hours = $log->total_hours ?? 0;
+            // Subtract 1 hour if the log is > 1 hour, otherwise use the hours as is.
+            $renderedHours = ($hours > 1) ? $hours - 1 : $hours;
+            return $carry + $renderedHours;
+        }, 0);
 
         if ($activeLog && $user->company_id && $activeLog->company_id === $user->company_id) {
             // Add current session duration
@@ -87,7 +94,10 @@ class TimeLogController extends Controller
             $start = \Carbon\Carbon::parse($activeLog->date->format('Y-m-d') . ' ' . $timeIn);
             $now = \Carbon\Carbon::now();
             $diff = $start->diffInMinutes($now) / 60;
-            $totalSummary += $diff;
+
+            // Also apply the lunch-hour deduction to the live timer if it's been running for more than an hour
+            $renderedDiff = ($diff > 1) ? $diff - 1 : $diff;
+            $totalSummary += $renderedDiff;
         }
 
         // Calculate days left
@@ -109,11 +119,17 @@ class TimeLogController extends Controller
         } else {
             $avgSumQuery->whereRaw('1 = 0');
         }
-        $averageHoursPerDay = $daysWorked > 0 ? ($avgSumQuery->sum('total_hours') / $daysWorked) : 0;
+        $logsForAverage = $avgSumQuery->get();
+        $totalRenderedHoursForAvg = $logsForAverage->reduce(function ($carry, $log) {
+            $hours = $log->total_hours ?? 0;
+            $renderedHours = ($hours > 1) ? $hours - 1 : $hours;
+            return $carry + $renderedHours;
+        }, 0);
+        $averageHoursPerDay = $daysWorked > 0 ? ($totalRenderedHoursForAvg / $daysWorked) : 0;
         
         // Estimate days left (using 8 hours as fallback if no average yet)
         $dailyRate = $averageHoursPerDay > 0 ? $averageHoursPerDay : 8;
-        $daysLeft = ceil($remainingHours / $dailyRate);
+        $daysLeft = $dailyRate > 0 ? ceil($remainingHours / $dailyRate) : 0;
 
         return view('dashboard', compact('activeLog', 'chartLabels', 'chartData', 'totalSummary', 'user', 'daysLeft', 'averageHoursPerDay', 'recentLogs'));
     }
@@ -303,14 +319,16 @@ class TimeLogController extends Controller
 
         $callback = function() use ($logs) {
             $file = fopen('php://output', 'w');
-            fputcsv($file, ['Date', 'Time In', 'Time Out', 'Total Hours', 'Notes', 'Status']);
+            fputcsv($file, ['Date', 'Time In', 'Time Out', 'Total Hours', 'Rendered Hours', 'Notes', 'Status']);
 
             foreach ($logs as $log) {
+                $renderedHours = $log->total_hours > 1 ? $log->total_hours - 1 : $log->total_hours;
                 fputcsv($file, [
                     $log->date->format('Y-m-d'),
                     Carbon::parse($log->time_in)->format('H:i'),
                     $log->time_out ? Carbon::parse($log->time_out)->format('H:i') : 'N/A',
                     $log->total_hours,
+                    $renderedHours,
                     $log->notes,
                     $log->status,
                 ]);

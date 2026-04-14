@@ -170,6 +170,7 @@
                         <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Date</th>
                         <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Time</th>
                         <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Hours</th>
+                        <th class="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Rendered</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -188,6 +189,14 @@
                                 @php
                                     $hours = floor($log->total_hours);
                                     $minutes = round(($log->total_hours - $hours) * 60);
+                                @endphp
+                                <span class="text-xs font-black text-black">{{ $hours }}h {{ $minutes }}m</span>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                @php
+                                    $renderedHours = $log->total_hours > 1 ? $log->total_hours - 1 : $log->total_hours;
+                                    $hours = floor($renderedHours);
+                                    $minutes = round(($renderedHours - $hours) * 60);
                                 @endphp
                                 <span class="text-xs font-black text-black">{{ $hours }}h {{ $minutes }}m</span>
                             </td>
