@@ -92,7 +92,7 @@
                     </td>
                     <td class="px-8 py-6 text-right">
                         <div class="flex items-center justify-end gap-2">
-                            <button onclick="openLogModal({{ $student->id }}, '{{ addslashes($student->name) }}', {{ json_encode($student->timeLogs->map(function($log) {
+                            <button onclick="openLogModal({{ $student->id }}, '{{ addslashes($student->name) }}', {{ json_encode($student->timeLogs->sortByDesc('date')->values()->map(function($log) {
                                 $totalHours = $log->total_hours ?? 0;
                                 $renderedHours = $totalHours > 1 ? $totalHours - 1 : $totalHours;
                                 $h = floor($totalHours);
