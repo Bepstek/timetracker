@@ -40,9 +40,11 @@ Route::middleware('auth')->group(function () {
         Route::get('dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
         Route::post('companies', [AdminController::class, 'storeCompany'])->name('companies.store');
         Route::get('companies/{company}', [AdminController::class, 'showCompany'])->name('companies.show');
+        Route::get('companies/{company}/export-analytics', [AdminController::class, 'exportAnalytics'])->name('companies.exportAnalytics');
         Route::patch('companies/{company}/archive', [AdminController::class, 'toggleArchive'])->name('companies.archive');
         Route::post('students/assign', [AdminController::class, 'assignStudent'])->name('students.assign');
         Route::delete('students/{user}/remove', [AdminController::class, 'removeStudent'])->name('students.remove');
+        Route::get('students/{user}/export', [AdminController::class, 'exportStudent'])->name('students.export');
         Route::get('users', [AdminController::class, 'users'])->name('users');
         Route::delete('users/{user}', [AdminController::class, 'deleteUser'])->name('users.delete');
         Route::post('users/{user}/reset-password', [AdminController::class, 'resetPassword'])->name('users.resetPassword');

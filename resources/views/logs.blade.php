@@ -39,12 +39,28 @@
                     Add Manual Log (Locked)
                 </button>
             @endif
-            <a href="{{ route('logs.export') }}" class="bw-button px-5 py-2 text-xs font-bold uppercase tracking-widest border border-black flex items-center bg-black text-white">
-                <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                Export
-            </a>
+            <div class="relative group">
+                <button class="bw-button px-5 py-2 text-xs font-bold uppercase tracking-widest border border-black flex items-center bg-black text-white group-hover:bg-gray-900">
+                    <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Export <span class="ml-2">▼</span>
+                </button>
+                <div class="absolute right-0 mt-0 w-40 bg-white border border-black shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                    <a href="{{ route('logs.export', ['type' => 'excel']) }}" class="block px-4 py-3 text-xs font-bold uppercase tracking-widest text-black hover:bg-gray-100 border-b border-gray-200">
+                        <svg class="h-4 w-4 mr-2 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                        </svg>
+                        Export Excel
+                    </a>
+                    <a href="{{ route('logs.export', ['type' => 'pdf']) }}" class="block px-4 py-3 text-xs font-bold uppercase tracking-widest text-black hover:bg-gray-100">
+                        <svg class="h-4 w-4 mr-2 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        Export PDF
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
     <div class="overflow-x-auto">

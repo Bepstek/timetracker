@@ -6,6 +6,7 @@ use App\Models\TimeLog;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class TimeLogController extends Controller
 {
@@ -291,7 +292,18 @@ class TimeLogController extends Controller
         return view('logs', compact('logs'));
     }
 
-    public function export()
+    public function export(Request $request)
+    {
+        $type = $request->query('type', 'excel');
+
+        if ($type === 'pdf') {
+            return $this->exportPDF();
+        }
+
+        return $this->exportExcel();
+    }
+
+    private function exportPDF()
     {
         $user = Auth::user();
         
@@ -301,42 +313,67 @@ class TimeLogController extends Controller
 
         if ($user->company_id) {
             $query->where('company_id', $user->company_id);
+            $company = $user->company;
         } else {
             $query->whereRaw('1 = 0');
+            $company = null;
         }
 
         $logs = $query->get();
 
-        $filename = 'time-logs-' . now()->format('Y-m-d') . '.csv';
+        // Calculate totals
+        $totalRenderedHours = $logs->reduce(function ($carry, $log) {
+            $hours = $log->total_hours ?? 0;
+            $renderedHours = ($hours > 1) ? $hours - 1 : $hours;
+            return $carry + $renderedHours;
+        }, 0);
+
+        $html = view('exports.pdf', compact('user', 'logs', 'company', 'totalRenderedHours'))->render();
         
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"$filename\"",
+        $pdf = Pdf::loadHTML($html)
+            ->setPaper('a4')
+            ->setOption('margin-top', 10)
+            ->setOption('margin-bottom', 10)
+            ->setOption('margin-left', 10)
+            ->setOption('margin-right', 10);
+
+        return $pdf->download('time-logs-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    private function exportExcel()
+    {
+        $user = Auth::user();
+        
+        $query = $user->timeLogs()
+            ->orderBy('date', 'desc')
+            ->orderBy('time_in', 'desc');
+
+        if ($user->company_id) {
+            $query->where('company_id', $user->company_id);
+            $company = $user->company;
+        } else {
+            $query->whereRaw('1 = 0');
+            $company = null;
+        }
+
+        $logs = $query->get();
+
+        // Calculate totals
+        $totalHours = $logs->sum('total_hours');
+        $totalRenderedHours = $logs->reduce(function ($carry, $log) {
+            $hours = $log->total_hours ?? 0;
+            $renderedHours = ($hours > 1) ? $hours - 1 : $hours;
+            return $carry + $renderedHours;
+        }, 0);
+
+        $html = view('exports.excel', compact('user', 'logs', 'company', 'totalHours', 'totalRenderedHours'))->render();
+
+        return response($html, 200, [
+            'Content-Type' => 'application/vnd.ms-excel; charset=utf-8',
+            'Content-Disposition' => 'attachment; filename="time-logs-' . now()->format('Y-m-d') . '.xls"',
             'Pragma' => 'no-cache',
             'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
             'Expires' => '0',
-        ];
-
-        $callback = function() use ($logs) {
-            $file = fopen('php://output', 'w');
-            fputcsv($file, ['Date', 'Time In', 'Time Out', 'Total Hours', 'Rendered Hours', 'Notes', 'Status']);
-
-            foreach ($logs as $log) {
-                $renderedHours = $log->total_hours > 1 ? $log->total_hours - 1 : $log->total_hours;
-                fputcsv($file, [
-                    $log->date->format('Y-m-d'),
-                    Carbon::parse($log->time_in)->format('H:i'),
-                    $log->time_out ? Carbon::parse($log->time_out)->format('H:i') : 'N/A',
-                    $log->total_hours,
-                    $renderedHours,
-                    $log->notes,
-                    $log->status,
-                ]);
-            }
-
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        ]);
     }
 }

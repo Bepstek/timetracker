@@ -7,6 +7,8 @@ use App\Models\User;
 use App\Models\Company;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 
 class AdminController extends Controller
 {
@@ -204,6 +206,123 @@ class AdminController extends Controller
                 'status' => $request->status,
             ],
         ]);
+    }
+
+    /**
+     * Export a student's time logs
+     */
+    public function exportStudent(Request $request, User $user)
+    {
+        $type = $request->query('type', 'excel');
+
+        if ($type === 'pdf') {
+            return $this->exportStudentPDF($user);
+        }
+
+        return $this->exportStudentExcel($user);
+    }
+
+    /**
+     * Export student logs as Excel
+     */
+    private function exportStudentExcel(User $user)
+    {
+        $logs = $user->timeLogs()
+            ->orderBy('date', 'desc')
+            ->orderBy('time_in', 'desc')
+            ->get();
+
+        $filename = 'time-logs-' . $user->name . '-' . now()->format('Y-m-d') . '.html';
+        
+        $totalHours = $logs->sum('total_hours');
+        $totalRenderedHours = $logs->reduce(function ($carry, $log) {
+            $hours = $log->total_hours ?? 0;
+            $renderedHours = ($hours > 1) ? $hours - 1 : $hours;
+            return $carry + $renderedHours;
+        }, 0);
+
+        $html = view('exports.excel', [
+            'user' => $user,
+            'logs' => $logs,
+            'totalHours' => $totalHours,
+            'totalRenderedHours' => $totalRenderedHours,
+            'company' => $user->company,
+        ])->render();
+
+        return response($html)
+            ->header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            ->header('Content-Disposition', "attachment; filename=\"$filename\"");
+    }
+
+    /**
+     * Export student logs as PDF
+     */
+    private function exportStudentPDF(User $user)
+    {
+        $logs = $user->timeLogs()
+            ->orderBy('date', 'desc')
+            ->orderBy('time_in', 'desc')
+            ->get();
+
+        $totalHours = $logs->sum('total_hours');
+        $totalRenderedHours = $logs->reduce(function ($carry, $log) {
+            $hours = $log->total_hours ?? 0;
+            $renderedHours = ($hours > 1) ? $hours - 1 : $hours;
+            return $carry + $renderedHours;
+        }, 0);
+
+        $html = view('exports.pdf', [
+            'user' => $user,
+            'logs' => $logs,
+            'totalHours' => $totalHours,
+            'totalRenderedHours' => $totalRenderedHours,
+            'company' => $user->company,
+        ])->render();
+
+        $pdf = Pdf::loadHTML($html);
+        
+        $filename = 'time-logs-' . $user->name . '-' . now()->format('Y-m-d') . '.pdf';
+        
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Export company analytics
+     */
+    public function exportAnalytics(Company $company)
+    {
+        $students = $company->users()->get();
+        
+        $analyticsData = $students->map(function ($student) {
+            $logs = $student->timeLogs()->get();
+            $totalHours = $logs->sum('total_hours');
+            $totalRenderedHours = $logs->reduce(function ($carry, $log) {
+                $hours = $log->total_hours ?? 0;
+                $renderedHours = ($hours > 1) ? $hours - 1 : $hours;
+                return $carry + $renderedHours;
+            }, 0);
+
+            return [
+                'name' => $student->name,
+                'email' => $student->email,
+                'total_hours' => $totalHours,
+                'rendered_hours' => $totalRenderedHours,
+                'days_worked' => $logs->count(),
+                'average_hours' => $logs->count() > 0 ? $totalRenderedHours / $logs->count() : 0,
+            ];
+        });
+
+        $html = view('exports.company-analytics', [
+            'company' => $company,
+            'students' => $analyticsData,
+            'generatedAt' => now(),
+        ])->render();
+
+        $pdf = Pdf::loadHTML($html);
+        
+        $filename = 'analytics-' . $company->name . '-' . now()->format('Y-m-d') . '.pdf';
+        
+        return $pdf->download($filename);
     }
 }
 

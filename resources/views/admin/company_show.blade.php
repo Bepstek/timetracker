@@ -34,6 +34,12 @@
                 Assign Student
             </button>
         @endif
+        <a href="{{ route('admin.companies.exportAnalytics', $company) }}" class="bg-black text-white px-8 py-4 text-xs font-black uppercase tracking-widest hover:bg-gray-800 transition-all inline-flex items-center gap-2">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Export Analytics
+        </a>
         <form action="{{ route('admin.companies.archive', $company) }}" method="POST">
             @csrf
             @method('PATCH')
@@ -109,9 +115,31 @@
                                     'status' => $log->status,
                                     'notes' => $log->notes ?: '—'
                                 ];
-                            })) }})" class="text-[10px] font-black uppercase tracking-widest border border-gray-200 px-4 py-2 hover:border-black transition-colors inline-block text-black">
+                            })) }})" class="text-[10px] font-black uppercase tracking-widest border border-black px-4 py-2 bg-black text-white hover:bg-gray-800 transition-colors inline-block">
                                 Full Log
                             </button>
+                            <div class="relative group">
+                                <button class="text-[10px] font-black uppercase tracking-widest border border-black px-4 py-2 bg-black text-white hover:bg-gray-800 transition-colors inline-flex items-center gap-2">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                    Export <span>▼</span>
+                                </button>
+                                <div class="absolute right-0 mt-0 w-44 bg-white border border-black shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                                    <a href="{{ route('admin.students.export', ['user' => $student, 'type' => 'excel']) }}" class="block px-4 py-3 text-xs font-bold uppercase tracking-widest text-black hover:bg-gray-100 border-b border-gray-200">
+                                        <svg class="h-4 w-4 mr-2 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        Export Excel
+                                    </a>
+                                    <a href="{{ route('admin.students.export', ['user' => $student, 'type' => 'pdf']) }}" class="block px-4 py-3 text-xs font-bold uppercase tracking-widest text-black hover:bg-gray-100">
+                                        <svg class="h-4 w-4 mr-2 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                        </svg>
+                                        Export PDF
+                                    </a>
+                                </div>
+                            </div>
                             <form action="{{ route('admin.students.remove', $student) }}" method="POST" onsubmit="return confirm('Are you sure you want to remove this student? All logs will remain but they will no longer be assigned to this room.')">
                                 @csrf
                                 @method('DELETE')
@@ -145,7 +173,7 @@
             </button>
         </div>
         
-        <div class="flex-1 overflow-y-auto p-8">
+        <div class="p-8">
             <table class="min-w-full text-left">
                 <thead>
                     <tr class="border-b-2 border-black">
@@ -162,6 +190,21 @@
             </table>
         </div>
 
+        <div class="px-8 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+            <div class="text-xs font-bold text-gray-500 uppercase tracking-widest">
+                Showing <span id="paginationInfo">1-10</span> of <span id="paginationTotal">0</span>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="previousPage()" class="px-4 py-2 border border-black text-xs font-black uppercase tracking-widest hover:bg-black hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed" id="prevBtn">
+                    ← Previous
+                </button>
+                <div id="pageNumbers" class="flex gap-1"></div>
+                <button onclick="nextPage()" class="px-4 py-2 border border-black text-xs font-black uppercase tracking-widest hover:bg-black hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed" id="nextBtn">
+                    Next →
+                </button>
+            </div>
+        </div>
+
         <div class="p-6 border-t border-black bg-gray-50 text-right">
             <button onclick="document.getElementById('studentLogModal').classList.add('hidden')" class="bg-black text-white px-8 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-gray-800">
                 Close Audit
@@ -171,42 +214,103 @@
 </div>
 
 <script>
+    let allLogs = [];
+    let currentPage = 1;
+    const itemsPerPage = 10;
+
     function openLogModal(studentId, studentName, logs) {
         document.getElementById('modalStudentName').innerText = studentName;
+        allLogs = logs;
+        currentPage = 1;
+        renderPage();
+        document.getElementById('studentLogModal').classList.remove('hidden');
+    }
+
+    function renderPage() {
         const body = document.getElementById('modalLogTableBody');
         body.innerHTML = '';
 
-        if (logs.length === 0) {
-            body.innerHTML = '<tr><td colspan="4" class="py-20 text-center text-gray-300 font-bold uppercase text-sm tracking-widest">No logs recorded for this student.</td></tr>';
-        } else {
-            logs.forEach(log => {
-                const statusClass = log.status === 'active' ? 'bg-black text-white' : 'bg-gray-100 text-gray-400';
-                body.innerHTML += `
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="py-5">
-                            <p class="text-[11px] font-black text-black uppercase">${log.date}</p>
-                            <p class="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">${log.time_in} - ${log.time_out}</p>
-                        </td>
-                        <td class="py-5 text-center text-xs font-black text-black tabular-nums">
-                            ${log.total_hours}
-                        </td>
-                        <td class="py-5 text-center text-xs font-black text-black tabular-nums">
-                            ${log.rendered_hours}
-                        </td>
-                        <td class="py-5 text-center">
-                            <span class="text-[8px] font-black px-2 py-0.5 uppercase tracking-tighter ${statusClass}">
-                                ${log.status}
-                            </span>
-                        </td>
-                        <td class="py-5 text-[10px] font-bold text-gray-400 uppercase tracking-tight max-w-xs truncate">
-                            ${log.notes}
-                        </td>
-                    </tr>
-                `;
-            });
+        if (allLogs.length === 0) {
+            body.innerHTML = '<tr><td colspan="5" class="py-20 text-center text-gray-300 font-bold uppercase text-sm tracking-widest">No logs recorded for this student.</td></tr>';
+            document.getElementById('paginationInfo').innerText = '0-0';
+            document.getElementById('paginationTotal').innerText = '0';
+            document.getElementById('prevBtn').disabled = true;
+            document.getElementById('nextBtn').disabled = true;
+            document.getElementById('pageNumbers').innerHTML = '';
+            return;
         }
 
-        document.getElementById('studentLogModal').classList.remove('hidden');
+        const totalPages = Math.ceil(allLogs.length / itemsPerPage);
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = Math.min(startIndex + itemsPerPage, allLogs.length);
+        const paginatedLogs = allLogs.slice(startIndex, endIndex);
+
+        paginatedLogs.forEach(log => {
+            const statusClass = log.status === 'active' ? 'bg-black text-white' : 'bg-gray-100 text-gray-400';
+            body.innerHTML += `
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="py-5">
+                        <p class="text-[11px] font-black text-black uppercase">${log.date}</p>
+                        <p class="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">${log.time_in} - ${log.time_out}</p>
+                    </td>
+                    <td class="py-5 text-center text-xs font-black text-black tabular-nums">
+                        ${log.total_hours}
+                    </td>
+                    <td class="py-5 text-center text-xs font-black text-black tabular-nums">
+                        ${log.rendered_hours}
+                    </td>
+                    <td class="py-5 text-center">
+                        <span class="text-[8px] font-black px-2 py-0.5 uppercase tracking-tighter ${statusClass}">
+                            ${log.status}
+                        </span>
+                    </td>
+                    <td class="py-5 text-[10px] font-bold text-gray-400 uppercase tracking-tight max-w-xs truncate">
+                        ${log.notes}
+                    </td>
+                </tr>
+            `;
+        });
+
+        // Update pagination info
+        document.getElementById('paginationInfo').innerText = `${startIndex + 1}-${endIndex}`;
+        document.getElementById('paginationTotal').innerText = allLogs.length;
+
+        // Update button states
+        document.getElementById('prevBtn').disabled = currentPage === 1;
+        document.getElementById('nextBtn').disabled = currentPage === totalPages;
+
+        // Render page numbers
+        const pageNumbersDiv = document.getElementById('pageNumbers');
+        pageNumbersDiv.innerHTML = '';
+        for (let i = 1; i <= totalPages; i++) {
+            const btn = document.createElement('button');
+            btn.textContent = i;
+            btn.className = i === currentPage ? 
+                'px-2 py-1 bg-black text-white text-xs font-bold border border-black' : 
+                'px-2 py-1 border border-gray-300 text-xs font-bold text-black hover:border-black transition-all';
+            btn.onclick = () => goToPage(i);
+            pageNumbersDiv.appendChild(btn);
+        }
+    }
+
+    function previousPage() {
+        if (currentPage > 1) {
+            currentPage--;
+            renderPage();
+        }
+    }
+
+    function nextPage() {
+        const totalPages = Math.ceil(allLogs.length / itemsPerPage);
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderPage();
+        }
+    }
+
+    function goToPage(page) {
+        currentPage = page;
+        renderPage();
     }
 </script>
 
